@@ -1,0 +1,98 @@
+alias funcNum R1;
+alias currPID R2;
+
+if(funcNum == 1) then
+	//Increment WAIT_MEM_COUNT
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] + 1;
+	while([SYSTEM_STATUS_TABLE + 3]==0) do
+		[PROCESS_TABLE + (currPID * 16) + 4] = WAIT_MEM;
+		multipush(R1,R2);
+		call MOD_5;
+		multipop(R1,R2);
+	endwhile;
+	//Decrement the WAIT_MEM_COUNT and MEM_FREE_COUNT 
+	[SYSTEM_STATUS_TABLE + 3] = [SYSTEM_STATUS_TABLE + 3] - 1;
+	[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+	alias freeCounter R3;
+	freeCounter = 76;
+	while (freeCounter< MAX_MEM_PAGE) do
+			if([MEMORY_FREE_LIST + freeCounter] == 0) then
+					[MEMORY_FREE_LIST + freeCounter] = 1;
+					R0 = freeCounter;
+					return;
+			endif;
+			freeCounter = freeCounter+1;
+	endwhile;
+	return;
+endif;
+
+if(funcNum == 2) then
+	alias page R2;
+	[MEMORY_FREE_LIST + page] = [MEMORY_FREE_LIST + page] - 1;
+	if([MEMORY_FREE_LIST + page] == 0) then
+		[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] + 1;
+	endif;
+	alias pidCounter R3;
+    pidCounter = 1;
+    while (pidCounter < 16) do
+        if ([PROCESS_TABLE + 16*pidCounter + 4 ] == WAIT_MEM) then
+            [PROCESS_TABLE + 16*pidCounter + 4 ] = READY;
+        endif;
+        pidCounter = pidCounter + 1;
+    endwhile;
+	return;
+endif; 
+
+if(funcNum==5) then
+	alias blockNum R2;
+	alias pidCounter R3;
+	alias codePage R4;
+	pidCounter = 1;
+	//Search disk map table of all processes
+	while (pidCounter < 16) do
+			codePage = 4;
+			//search all code pages of that process
+			while(codePage <= 7)do
+					//if the same block is loaded by another process
+					if([DISK_MAP_TABLE + 10*pidCounter + codePage] == blockNum) then
+							//if code block found, check if in memory
+							if([PAGE_TABLE_BASE + 20*pidCounter + 2*codePage] != -1)then
+									//if so return and increment memory free list
+									R0 = [PAGE_TABLE_BASE + 20*pidCounter + 2*codePage];
+									[MEMORY_FREE_LIST + R0] = [MEMORY_FREE_LIST + R0] + 1;
+									return;
+							endif;
+					endif;
+					codePage = codePage + 1;
+			endwhile;
+			pidCounter = pidCounter + 1;
+	endwhile;
+	// allocate a new page and load the block 
+	alias pageNum R5;
+	multipush(R1, R2, R3, R4);
+	//get_free_page
+	R1 = 1;
+	R2 = blockNum;
+	call MOD_2;
+	multipop(R1, R2, R3, R4);
+	pageNum = R0;
+
+	multipush(R1, R2, R3, R4, R5);
+	//disk load
+	R1 = 2;
+	R4 = blockNum;
+	R2 = [SYSTEM_STATUS_TABLE + 1];
+	R3 = pageNum;
+	call MOD_4;
+	multipop(R1, R2, R3, R4, R5);
+	//return loaded page number
+	R0 = pageNum;
+	return;
+endif;
+
+//release block
+if(funcNum == 4) then
+    alias blockNum R2;
+    [DISK_FREE_LIST + blockNum] = [DISK_FREE_LIST + blockNum] - 1;
+    return;
+endif;

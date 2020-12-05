@@ -1,0 +1,44 @@
+type
+    node {
+        int val;
+        node next;
+    }
+endtype
+
+decl
+    node head, list;
+enddecl
+
+int main()
+{
+decl
+    int iter, size, temp;
+enddecl
+begin
+    temp = initialize();
+		temp = exposcall ( "Write" , -2, "Enter Size" );
+    temp = exposcall ( "Read" , -1, size );
+    head = alloc();
+    list = head;
+    iter = 0;
+		temp = exposcall ( "Write" , -2, "Enter Values" );
+    while (iter < size) do
+        temp = exposcall ( "Read" , -1, list.val );
+        list.next = alloc();
+        list = list.next;
+        iter = iter + 1;
+    endwhile;
+
+		
+    temp = exposcall ( "Write" , -2, "LINKED-LIST" );
+
+    list = head;
+    iter = 0;
+    while (iter < size) do
+        temp = exposcall ( "Write" , -2, list.val );
+        list = list.next;
+        iter = iter + 1;
+    endwhile;
+    return 0;
+end
+}

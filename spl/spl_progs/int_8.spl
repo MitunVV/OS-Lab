@@ -1,0 +1,117 @@
+alias userSP R6;
+userSP=SP;
+alias currentPID  R1;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+[PROCESS_TABLE + currentPID * 16 + 13]=userSP;
+SP=[PROCESS_TABLE + currentPID * 16 + 11]*512-1;
+[PROCESS_TABLE + currentPID * 16 + 9] = 8;
+
+//get new PID
+alias newPID R8;
+multipush(R1,R8,R6);
+R1=GET_PCB_ENTRY;
+call MOD_1;
+multipop(R1,R8,R6);
+
+newPID=R0;
+//if free process table not available
+if (newPID == -1) then
+    [[PTBR + 2 * ((userSP - 1)/512)] * 512 + (userSP - 1) % 512] = -1;
+    [PROCESS_TABLE + (currentPID * 16) + 9] = 0;
+    SP = [PROCESS_TABLE + (currentPID * 16) + 13];
+    ireturn;
+endif;
+
+// Set heap page of parent if not allocated
+if ([PTBR + 4] == -1) then
+    multipush (R1,R8,R6);
+    R1 = 1;
+    call MOD_2;
+    [PTBR + 4] = R0;
+    [PTBR + 5] = "1110";
+    R1 = 1;
+    call MOD_2;
+    [PTBR + 6] = R0;
+    [PTBR + 7] = "1110";
+    multipop(R1,R8,R6);
+endif;
+// Stack Allocation of child process
+multipush (R1,R7,R6);
+R1 = 1;
+call MOD_2;
+[PAGE_TABLE_BASE + newPID*20 + 16] = R0;
+[PAGE_TABLE_BASE + newPID*20 + 17] = "0110";
+R1 = 1;
+call MOD_2;
+[PAGE_TABLE_BASE + newPID*20 + 18] = R0;
+[PAGE_TABLE_BASE + newPID*20 + 19] = "0110";
+multipop(R1,R7,R6);
+// UAPage allocation for child
+multipush (R1,R8,R6);
+R1 = 1;
+call MOD_2;
+multipop (R1,R8,R6);
+[PROCESS_TABLE + (newPID * 16) + 11] = R0;
+alias currProTable R3;
+currProTable = PROCESS_TABLE + (currentPID * 16);
+alias newProTable R4;
+newProTable = PROCESS_TABLE + (newPID * 16);
+
+//initialize process table - Child process
+[newProTable + 3]	= [currProTable + 3];
+[newProTable + 6]	= [currProTable + 6];
+[newProTable + 10]	= [currProTable + 10];
+[newProTable + 7] 	= [currProTable + 7]; 
+[newProTable + 13] 	= [currProTable + 13];
+
+[newProTable + 9]	= 0;
+[newProTable + 12]	= 0;
+[newProTable + 0]	= 0;
+[newProTable + 2]	= currentPID;
+[newProTable + 4]	= CREATED;
+
+//perprocess table initialization
+alias perProcessCounter R5;
+perProcessCounter = 0;
+while (perProcessCounter < 16) do
+    [[newProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + perProcessCounter] = [[currProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + perProcessCounter];
+    perProcessCounter = perProcessCounter + 1;
+endwhile;
+
+//perprocess diskmap table initialization
+alias diskMapCounter R5;
+diskMapCounter = 0;
+while (diskMapCounter<10) do
+    [DISK_MAP_TABLE+ 10*newPID + diskMapCounter ] = [DISK_MAP_TABLE+ 10*currentPID + diskMapCounter ];
+    diskMapCounter = diskMapCounter + 1; 
+endwhile;
+
+//page table
+alias iter R5;
+iter = 0;
+while (iter<16) do
+    [PAGE_TABLE_BASE + 20*newPID + iter] = [PTBR +iter]; 
+		if(((iter%2) == 0) && ([PTBR + iter] != -1)) then
+			[MEMORY_FREE_LIST + [PTBR + iter]] = [MEMORY_FREE_LIST + [PTBR + iter]] + 1;
+		endif;
+    iter = iter + 1; 
+endwhile;
+
+[PAGE_TABLE_BASE + newPID*20 + 17] = [PTBR + 17];
+[PAGE_TABLE_BASE + newPID*20 + 19] = [PTBR + 19];
+
+iter = 0;
+while(iter < 512) do
+	[[PAGE_TABLE_BASE + newPID*20 + 16]*512 + iter] = [[PTBR + 16]*512 + iter];
+	[[PAGE_TABLE_BASE + newPID*20 + 18]*512 + iter] = [[PTBR + 18]*512 + iter];
+	iter = iter + 1;
+endwhile;
+
+[[PROCESS_TABLE + newPID*16 + 11]*512] = BP;
+
+[[PTBR+ 2*(userSP - 1)/512] * 512 + (userSP - 1)%512] = newPID;
+[[PAGE_TABLE_BASE + newPID*20 + 2 * (userSP - 1)/512] * 512 + (userSP - 1) % 512] = 0;
+
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 9] = 0;
+SP = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 13];
+ireturn;

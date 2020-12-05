@@ -1,0 +1,15 @@
+alias curr_pid R0;
+curr_pid=[SYSTEM_STATUS_TABLE+1];
+alias curr_pro R1;
+curr_pro= PROCESS_TABLE + curr_pid * 16;
+[curr_pro + 4] = TERMINATED;
+alias counter R0;
+counter = 1;
+while(counter <= 15) do
+  if([PROCESS_TABLE + (counter * 16) + 4] != TERMINATED) then
+    call MOD_5;
+  endif;
+  counter = counter + 1;
+endwhile; 
+
+halt;

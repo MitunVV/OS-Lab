@@ -1,0 +1,66 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+sysCallNum = [[PTBR + 2 * ((userSP - 5)/512)] * 512 + ((userSP - 5)%512)];
+[proTable + 9] = sysCallNum;
+
+//Wait
+if(sysCallNum == 13) then	
+	//PID of process to wait as argument 
+	alias pid R5;
+	pid = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP-4)%512];
+	//check if pid is valid
+	if((pid == currentPID) || (pid < 0) || (pid > 15) || ([PROCESS_TABLE + 16*pid + 4] == TERMINATED)) then
+		[[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;
+	endif;
+	[proTable + 4] = WAIT_PROCESS;
+	[proTable + 5] = pid;
+	multipush (R1, R2, R3, R4, R5);
+	call SCHEDULER;
+	multipop (R1, R2, R3, R4, R5);
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = 0;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+//Signal
+if(sysCallNum == 14) then	
+	alias pidCounter R5;
+	pidCounter = 1;
+	while (pidCounter < 16) do
+			if ([PROCESS_TABLE + (pidCounter * 16) + 4] == WAIT_PROCESS && [PROCESS_TABLE + (pidCounter * 16) + 5] == currentPID) then
+					[PROCESS_TABLE + (pidCounter * 16) + 4] = READY;
+			endif;
+			pidCounter = pidCounter + 1;
+	endwhile;
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = 0;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+//Get PID
+if(sysCallNum == 11) then	
+	[[PTBR + 2*(userSP - 1)/512]*512 + (userSP-1)%512] = [proTable + 1];
+	[proTable +9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+//Get PPID
+if(sysCallNum == 12) then	
+	[[PTBR + 2*(userSP - 1)/512]*512 + (userSP-1)%512] = [proTable + 2];
+	[proTable +9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;

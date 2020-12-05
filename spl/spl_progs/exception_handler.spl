@@ -1,0 +1,60 @@
+// Set MODE flag to -1
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = -1;
+// Save user SP
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13] = SP;
+// Change to kernel stack
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
+backup;
+multipush(EIP);
+alias userSP R1;
+alias currPID R2;
+currPID = [SYSTEM_STATUS_TABLE + 1 ];
+userSP = [PROCESS_TABLE + ( [SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+//Not page fault
+if(EC!=0 || userSP==(PTLR*512-1)) then
+	multipush(R1,R2);
+	R1 = 3;
+	R2 = currPID;
+	call MOD_1;
+	multipop(R1,R2);
+	multipush(R1,R2);
+	call MOD_5;
+	multipop(R1,R2);
+endif;
+//code page generating page fault
+if (EPN >= 4 && EPN <= 7) then
+	multipush (R1,R2,EPN);
+	R1 = 5;
+	R2 = [DISK_MAP_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 10) + EPN];
+	call MOD_2;
+	multipop (R1,R2,EPN);    
+	[PTBR+EPN*2]=R0;
+	[PTBR+EPN*2+1]="1100";
+endif;
+//heap page generating page fault
+if (EPN == 2 || EPN == 3) then
+
+	multipush (R1,R2,EPN);
+	R1 = 1;
+	call MOD_2;
+	[PTBR + 4] = R0;
+	[PTBR + 5] = "1110";
+	multipop (R1,R2,EPN);
+
+	multipush (R1,R2,EPN);
+	R1 = 1;
+	call MOD_2;
+	[PTBR + 6] = R0;
+	[PTBR + 7] = "1110";
+	multipop (R1,R2,EPN);
+
+endif;
+
+[PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 9] = 0;
+multipop(EIP);
+restore;
+
+SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 13];
+SP = SP + 1;
+[[PTBR + (2 * (SP / 512))]*512 + (SP % 512)] = EIP;
+ireturn;

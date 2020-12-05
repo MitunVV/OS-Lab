@@ -1,0 +1,14 @@
+int main()
+{
+	decl
+	int temp;
+	string prog;
+	enddecl
+	begin
+		temp = exposcall ( "Write" , -2, "Enter program" );
+		temp = exposcall ( "Read" , -1, prog );
+		temp = exposcall ( "Exec" , prog );
+        temp = exposcall ( "Write" , -2, prog );
+		return 0;
+	end
+}

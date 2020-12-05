@@ -1,0 +1,117 @@
+alias userSP R0;
+userSP=SP;
+alias currentPID  R1;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+[PROCESS_TABLE + currentPID * 16 + 13]=userSP;
+SP=[PROCESS_TABLE + currentPID * 16 + 11]*512-1;
+[PROCESS_TABLE + currentPID * 16 + 9] = 9;
+
+alias file R2;
+file = [[PTBR + 2*(userSP - 4)/512]*512 + (userSP-4)%512];
+alias counter R6;
+counter = 0;
+while(counter < MAX_FILE_NUM) do
+    if(([INODE_TABLE + counter*16 + 1] == file) && ([INODE_TABLE + counter*16 + 0] == EXEC)) then
+			break;
+		else
+			counter = counter + 1;
+		endif;
+endwhile;
+
+
+if(counter==MAX_FILE_NUM) then
+    //return value to -1
+    print "No File";
+    [[PTBR + 2 * (userSP - 1)/ 512]*512 + (userSP-1)%512] = -1;
+    [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+    SP = userSP;
+    ireturn;
+endif;
+
+multipush(R0,R1,R2,R3,R6);
+R1 = 3;
+R2 = [SYSTEM_STATUS_TABLE + 1];
+call MOD_1;
+multipop(R0,R1,R2,R3,R6);
+
+alias userPageNum R4;
+userPageNum = [PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 11];
+[MEMORY_FREE_LIST + userPageNum] = [MEMORY_FREE_LIST + userPageNum] + 1;
+[SYSTEM_STATUS_TABLE + 2] = [SYSTEM_STATUS_TABLE + 2] - 1;
+
+//Setting the Per-Process resource table
+alias perProcessCounter R5;
+perProcessCounter = 0;
+while (perProcessCounter < 16) do
+    [userPageNum * 512 + RESOURCE_TABLE_OFFSET + perProcessCounter] = -1;
+    perProcessCounter = perProcessCounter + 2;
+endwhile;
+
+SP = userPageNum*512 - 1;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 4] = RUNNING;
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1]*16 + 7] = counter;
+
+PTBR = PAGE_TABLE_BASE + [SYSTEM_STATUS_TABLE + 1]*20;
+
+//library
+//read only
+[PTBR+0] = 63;
+[PTBR+1] = "0100";
+[PTBR+2] = 64;
+[PTBR+3] = "0100";
+
+
+multipush(R0,R1,R2,R3,R4,R6);
+
+// Stack Allocation
+
+R1 = 1;
+call MOD_2;
+[PTBR + 16] = R0;
+[PTBR + 17] = "0110";
+
+R1 = 1;
+call MOD_2;
+[PTBR + 18] = R0;
+[PTBR + 19] = "0110";
+
+// Invalidate page table entries of Heap
+
+[PTBR+4] = -1;
+[PTBR+5] = "0000";
+[PTBR+6] = -1;
+[PTBR+7] = "0000";
+
+multipop(R0,R1,R2,R3,R4,R6);
+
+//update first code block and invalidate the rest
+multipush(R0,R1,R2,R3,R4,R6);
+R1 = 5;
+R2 = [INODE_TABLE + counter*16 + 8];
+call MOD_2;
+[PTBR + 8] = R0;
+[PTBR + 9] = "0100";
+multipop(R0,R1,R2,R3,R4,R6);
+[PTBR + 10] = -1;
+[PTBR + 11] = "0000";
+[PTBR + 12] = -1;
+[PTBR + 13] = "0000";
+[PTBR + 14] = -1;
+[PTBR + 15] = "0000";
+
+
+[DISK_MAP_TABLE+ 10*currentPID ] = -1;
+[DISK_MAP_TABLE+ 10*currentPID + 1] = -1;
+[DISK_MAP_TABLE+ 10*currentPID + 2] = -1;
+[DISK_MAP_TABLE+ 10*currentPID + 3] = -1;
+[DISK_MAP_TABLE+ 10*currentPID + 4] = [INODE_TABLE + 16*counter + 8];
+[DISK_MAP_TABLE+ 10*currentPID + 5] = [INODE_TABLE + 16*counter + 9];
+[DISK_MAP_TABLE+ 10*currentPID + 6] = [INODE_TABLE + 16*counter + 10];
+[DISK_MAP_TABLE+ 10*currentPID + 7] = [INODE_TABLE + 16*counter + 11];
+[DISK_MAP_TABLE+ 10*currentPID + 8] = -1;
+[DISK_MAP_TABLE+ 10*currentPID + 9] = -1;
+
+[[PTBR + 16]*512] = [[PTBR + 8]*512 + 1];
+[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
+SP=8*512;
+ireturn;

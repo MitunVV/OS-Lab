@@ -1,0 +1,86 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+sysCallNum = [[PTBR + 2 * ((userSP - 5)/512)] * 512 + ((userSP - 5)%512)];
+[proTable + 9] = sysCallNum;
+
+if(sysCallNum==17) then
+    alias Counter R5;
+    Counter = 0;
+    while(Counter<16) do
+        if([[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter] == -1) then
+            break;
+        endif;
+        Counter=Counter+2;
+    endwhile;
+    if(Counter==16) then
+        [[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;
+    endif;
+    [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter]=1;
+    multipush(R1,R2,R3,R4,R5);
+    R2=currentPID;
+    R1=6;
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5);
+    alias index R6;
+    index = R0;
+    if (index==-1) then
+        [[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -2;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;       
+    endif;
+    [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter+1]=index;
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = index;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+if(sysCallNum==18) then
+    alias semDes R5;
+    semDes=[[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+    
+    alias Counter R5;
+    Counter = 0;
+    while(Counter<16) do
+        if([[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter] == -1) then
+            break;
+        endif;
+        Counter=Counter+2;
+    endwhile;
+    if(Counter==16) then
+        [[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;
+    endif;
+    [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter]=1;
+    multipush(R1,R2,R3,R4,R5);
+    R2=currentPID;
+    R1=6;
+    call MOD_0;
+    multipop(R1,R2,R3,R4,R5);
+    alias index R6;
+    index = R0;
+    if (index==-1) then
+        [[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -2;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;       
+    endif;
+    [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + Counter+1]=index;
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = index;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
