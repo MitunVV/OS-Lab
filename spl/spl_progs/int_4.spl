@@ -1,0 +1,169 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+alias returnVal R5;
+alias fileName R6;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+sysCallNum = [[PTBR + 2 * ((userSP - 5)/512)] * 512 + ((userSP - 5)%512)];
+returnVal = [PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512);
+fileName = [[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+[proTable + 9] = sysCallNum;
+
+if(sysCallNum==1) then
+	alias permission R7;
+	permission = [[PTBR + 2 * ((userSP - 3)/512)] * 512 + ((userSP - 3)%512)];
+	
+	//file already present - return 0
+	alias iter R8;
+	iter = 1;
+	while (iter<MAX_FILE_NUM) do
+		if([INODE_TABLE + 16*iter + 1] == fileName) then
+			[returnVal] = 0;
+			call ret;
+		endif;
+		iter = iter + 1;
+	endwhile;
+
+	//find index of free inode table entry
+	iter = 1;
+	while (iter<MAX_FILE_NUM) do
+		if([INODE_TABLE + 16*iter + 1] == -1) then
+			break;
+		endif;
+		iter = iter + 1;
+	endwhile;
+
+	//no free entry available - return -1
+	if (iter == MAX_FILE_NUM) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+	
+	//Setting inode table entry
+	[INODE_TABLE + 16*iter + 0] = DATA;
+	[INODE_TABLE + 16*iter + 1] = fileName;
+	[INODE_TABLE + 16*iter + 2] = 0;
+	[INODE_TABLE + 16*iter + 3] = [proTable+ 3];
+	[INODE_TABLE + 16*iter + 4] = permission;
+	//data blocks
+	[INODE_TABLE + 16*iter + 8] = -1;
+	[INODE_TABLE + 16*iter + 9] = -1;
+	[INODE_TABLE + 16*iter + 10] = -1;
+	[INODE_TABLE + 16*iter + 11] = -1;
+
+	//setting root file entry
+	[ROOT_FILE + iter*8 + 0] = fileName;
+	[ROOT_FILE + iter*8 + 1] = 0;
+	[ROOT_FILE + iter*8 + 2] = DATA;
+	[ROOT_FILE + iter*8 + 3] = [USER_TABLE + 2*[proTable + 3]];
+	[ROOT_FILE + iter*8 + 4] = permission;
+
+	//return success - 0
+	[returnVal] = 0;
+	call ret;
+endif;
+
+if(sysCallNum==4) then	
+	//find index of file in inode table
+	alias iter R7;
+	iter = 1;
+	while (iter<MAX_FILE_NUM) do
+		if([INODE_TABLE + 16*iter + 1] == fileName) then
+			break;
+		endif;
+		iter = iter + 1;
+	endwhile;
+
+	//file not found - return 0
+	if (iter == MAX_FILE_NUM) then
+		[returnVal] = 0;
+		call ret;
+	endif;
+
+	//file is not a DATA file - return -1
+	if ([INODE_TABLE + 16*iter + 0] != DATA) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+
+	//file permission denied - return -1
+	if ([INODE_TABLE + 16*iter + 4] == 0) then
+		if(([proTable + 3]!=ROOT)&&([INODE_TABLE + 16*iter + 3]!=[proTable + 3])) then
+			[returnVal] = -1;
+			call ret;
+		endif;
+	endif;
+	
+	//Acquire lock
+	multipush (R1,R2,R3,R4,R5,R6,R7);
+	R1 = 4;
+	R2 = iter;
+	R3 = [SYSTEM_STATUS_TABLE + 1];
+	call MOD_0;
+  multipop (R1,R2,R3,R4,R5,R6,R7);
+
+	//if FILE OPEN COUNT is not -1 return -2
+	if ([FILE_STATUS_TABLE + (iter * 4) + 1] != -1) then
+		multipush(R1,R2,R3,R4,R5,R6,R7);	
+		R1 = 5;
+		R2 = iter;
+		R3 = [SYSTEM_STATUS_TABLE + 1];			
+		call MOD_0;			
+		multipop(R1,R2,R3,R4,R5,R6,R7);
+		[returnVal] = -2;
+		call ret;
+	endif;
+
+	alias blockCount R8;
+	blockCount = 0;
+
+	//release all blocks
+	while(blockCount < 4) do
+		//clear the buffer
+		if([INODE_TABLE + 16*iter + 8 + blockCount] != -1) then
+			alias buffCount R9;
+			buffCount = 0;
+			while(buffCount < MAX_BUFFER) do
+				if([BUFFER_TABLE + 4*buffCount] ==[INODE_TABLE + 16*iter + 8 + blockCount]) then
+					[BUFFER_TABLE + 4*buffCount + 1] = 0;
+				endif;
+				buffCount = buffCount + 1;
+			endwhile;
+		endif;
+		//release the blockCount
+		multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+		R1 = 4;
+		R2 = [INODE_TABLE + 16*iter + 8 + blockCount];
+		R3 = [SYSTEM_STATUS_TABLE + 1];
+		call MOD_2;
+		multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+		blockCount = blockCount + 1;
+	endwhile;
+
+	//invalidate inode table entry
+	[INODE_TABLE + 16*iter + 1] = -1;
+	//invalidate root file entry
+	[ROOT_FILE + 8*iter ] = -1;
+
+	//release the lcok
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+	R1 = 5;
+	R2 = iter;
+	R3 = [SYSTEM_STATUS_TABLE + 1];
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9);
+
+	//return success - 0
+	[returnVal] = 0;
+	call ret;
+endif;
+
+ret:
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;

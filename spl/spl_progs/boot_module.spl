@@ -94,6 +94,14 @@ loadi(29, 42);
 // INT 14
 loadi(30, 43);
 loadi(31, 44);
+
+// INT 4
+loadi(10, 23);
+loadi(11, 24);
+
+//Root File
+loadi(62, 5);
+
 [DISK_STATUS_TABLE] = 0;
 
 alias counter R0;
@@ -145,6 +153,8 @@ PTLR = 10;
 //Process table for init
 // Setting PID to 1
 [PROCESS_TABLE + (16 * 1) + 1] = 1;
+// Setting USERID to ROOT
+[PROCESS_TABLE + (16 * 1) + 3] = ROOT;
 // Flag is set to created
 [PROCESS_TABLE + (16 * 1) + 4] = CREATED;
 //Setting User page area to 80
@@ -224,8 +234,25 @@ while (perProcessCounter < 16) do
     perProcessCounter = perProcessCounter + 2;
 endwhile;
 
-// Initializing Semaphore Table
+// Initializing File Status Table
 alias index R2;
+index = 0;
+while(index < MAX_FILE_NUM) do
+    [FILE_STATUS_TABLE + 4 * index] = -1;
+    [FILE_STATUS_TABLE + 4 * index + 1] = -1;
+    index = index + 1;
+endwhile;
+
+// Initialize Buffer Table
+index = 0;
+while (index < MAX_BUFFER) do
+    [BUFFER_TABLE + (index * 4)] = -1;
+    [BUFFER_TABLE + (index * 4) + 1] = 0;
+    [BUFFER_TABLE + (index * 4) + 2] = -1;
+    index = index + 1;
+endwhile;
+
+// Initializing Semaphore Table
 index = 0;
 while(index < 32) do
     [SEMAPHORE_TABLE + 4 * index] = -1;

@@ -1,1 +1,46 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+[proTable + 9] = 21;
+
+if([proTable+1]!=1 || [proTable+3]!=1) then
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+// Storing Inode Table and User Table
+R1 = 1;
+R2 = 1;
+R3 = 59;
+R4 = 3;
+call MOD_4;
+
+R1 = 1;
+R2 = 1;
+R3 = 60;
+R4 = 4;
+call MOD_4;
+
+// Storing Disk Free List
+R1 = 1;
+R2 = 1;
+R3 = 61;
+R4 = 2;
+call MOD_4;
+
+// Storing Root File
+R1 = 1;
+R2 = 1;
+R3 = 62;
+R4 = 5;
+call MOD_4;
+
 halt;

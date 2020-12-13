@@ -51,3 +51,21 @@ then
     return;
 endif;
 
+//disk store
+if(functionNum==1)
+then
+    multipush(R1, R2, R3, R4);
+		R1 = 3;
+		R2 = currentPID;
+		call MOD_0;
+    multipop(R1, R2, R3, R4);
+    [DISK_STATUS_TABLE + 1] = 1;
+    [DISK_STATUS_TABLE + 2] = pagenum;
+    [DISK_STATUS_TABLE + 3] = block;
+		store(pagenum,block);
+    [PROCESS_TABLE + currentPID*16 + 4] = WAIT_DISK;
+		multipush(R1, R2, R3, R4);
+    call MOD_5;
+		multipop(R1, R2, R3, R4);
+    return;
+endif;

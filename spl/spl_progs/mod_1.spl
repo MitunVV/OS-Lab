@@ -25,7 +25,7 @@ if(funcNum == 2) then //Free User Area Page
 	multipop(R1,R2);
 	return;
 endif;
-if(funcNum == 3) then
+if(funcNum == 3) then //Exit process
 	if ([PROCESS_TABLE + (currPID * 16) + 9] != 9) then
 		alias pidIter R3;
 		pidIter = 1;
@@ -55,7 +55,7 @@ if(funcNum == 3) then
 	return;
 endif;
 
-if(funcNum == 4) then
+if(funcNum == 4) then //Free page table
 	PTBR = PAGE_TABLE_BASE + currPID*20;
 	//Invalidate all library pages
 	[PTBR + 0] = -1;
