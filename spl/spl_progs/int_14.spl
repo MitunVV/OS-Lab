@@ -1,0 +1,75 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+sysCallNum = [[PTBR + 2 * ((userSP - 5)/512)] * 512 + ((userSP - 5)%512)];
+[proTable + 9] = sysCallNum;
+
+if(sysCallNum==19) then
+	alias semDes R5;
+	semDes=[[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+	if(semDes<0 || semDes >7 ||  [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + 2*semDes]!= 1) then
+		[[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;   
+	endif;
+	alias semID R6;
+	alias lockPID R7;
+	semID = [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + 2*semDes+1];
+	lockPID = SEMAPHORE_TABLE + 4*semID;
+	while(!([lockPID] == -1 || [lockPID] == currentPID)) do
+		[proTable + 4] = WAIT_SEMAPHORE;
+		[proTable + 5] = semID;		
+		multipush(R1,R2,R3,R4,R5,R6,R7);		
+		call MOD_5;		
+		multipop(R1,R2,R3,R4,R5,R6,R7);
+	endwhile;	
+	[lockPID] = currentPID;
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = 0;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;
+
+if(sysCallNum == 20) then
+	alias semDes R5;
+	semDes=[[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+	if(semDes<0 || semDes >7 ||  [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + 2*semDes]!= 1) then
+		[[PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -1;
+		[proTable + 9] = 0;
+		SP = [proTable + 13];
+		ireturn;   
+	endif;
+	alias semID R6;
+	alias lockPID R7;
+	semID = [[proTable +11] * 512 + RESOURCE_TABLE_OFFSET + 2*semDes+1];
+	lockPID = SEMAPHORE_TABLE + 4*semID;	
+	if([lockPID] != -1) then
+		if([lockPID] != currentPID) then
+			[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = -2;
+			[proTable + 9] = 0;
+			SP = [proTable + 13];
+			ireturn;
+		endif;		
+		[lockPID] = -1;
+		alias iter R8;				
+		// free all processes waiting for this semaphore
+		iter = 0;
+		while(iter < 16) do
+			if([PROCESS_TABLE + 16*iter + 4] == WAIT_SEMAPHORE && [PROCESS_TABLE + 16*iter + 5] == semID) then
+				[PROCESS_TABLE + 16*iter + 4] = READY;
+			endif;
+			iter = iter + 1;
+		endwhile;
+	endif;	
+	[[PTBR + 2 * ((userSP - 1)/512)] * 512 + ((userSP - 1)%512)] = 0;
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;
+endif;

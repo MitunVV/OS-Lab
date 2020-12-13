@@ -71,11 +71,20 @@ newProTable = PROCESS_TABLE + (newPID * 16);
 [newProTable + 4]	= CREATED;
 
 //perprocess table initialization
-alias perProcessCounter R5;
-perProcessCounter = 0;
-while (perProcessCounter < 16) do
-    [[newProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + perProcessCounter] = [[currProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + perProcessCounter];
-    perProcessCounter = perProcessCounter + 1;
+alias index R5;
+alias resTableChild R9;
+alias resTableParent R10;
+index = 0;
+resTableChild = [newProTable + 11] * 512 + RESOURCE_TABLE_OFFSET;
+resTableParent = [currProTable + 11] * 512 + RESOURCE_TABLE_OFFSET;
+while (index < 8) do
+    [resTableChild + 2 * index] = [resTableParent + 2 * index];
+    [resTableChild + 2 * index + 1] = [resTableParent + 2 * index + 1];
+    // Increment PROCESS COUNT in Semaphore Table
+    if ([[newProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + 2 * index] == 1) then
+        [SEMAPHORE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] = [SEMAPHORE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] + 1;
+    endif;
+    index = index + 1;
 endwhile;
 
 //perprocess diskmap table initialization

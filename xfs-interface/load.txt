@@ -10,6 +10,8 @@ load --int=8 $HOME/myexpos/spl/spl_progs/int_8.xsm
 load --int=9 $HOME/myexpos/spl/spl_progs/int_9.xsm
 load --int=10 $HOME/myexpos/spl/spl_progs/int_10.xsm
 load --int=11 $HOME/myexpos/spl/spl_progs/int_11.xsm
+load --int=13 $HOME/myexpos/spl/spl_progs/int_13.xsm
+load --int=14 $HOME/myexpos/spl/spl_progs/int_14.xsm
 load --int=15 $HOME/myexpos/spl/spl_progs/int_15.xsm
 load --module 0 $HOME/myexpos/spl/spl_progs/mod_0.xsm
 load --module 1 $HOME/myexpos/spl/spl_progs/mod_1.xsm
@@ -23,6 +25,7 @@ load --exec $HOME/myexpos/expl/expl_progs/gcd.xsm
 load --exec $HOME/myexpos/expl/expl_progs/evenno.xsm
 load --exec $HOME/myexpos/expl/expl_progs/oddno.xsm
 load --exec $HOME/myexpos/expl/expl_progs/read.xsm
+load --exec $HOME/myexpos/expl/expl_progs/rw.xsm
 load --exec $HOME/myexpos/expl/expl_progs/examp.xsm
 load --init $HOME/myexpos/expl/expl_progs/shell2.xsm
 dump --inodeusertable
