@@ -29,4 +29,6 @@ load --exec $HOME/myexpos/expl/expl_progs/read.xsm
 load --exec $HOME/myexpos/expl/expl_progs/rw.xsm
 load --exec $HOME/myexpos/expl/expl_progs/examp.xsm
 load --init $HOME/myexpos/expl/expl_progs/shell2.xsm
+load --exec $HOME/myexpos/expl/expl_progs/create.xsm
+load --exec $HOME/myexpos/expl/expl_progs/delete.xsm
 dump --inodeusertable
