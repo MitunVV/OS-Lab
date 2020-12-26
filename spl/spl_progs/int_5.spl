@@ -1,0 +1,100 @@
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+alias returnVal R5;
+alias resTable R6;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
+userSP = SP;
+SP = [proTable + 11] * 512 - 1;
+sysCallNum = [[PTBR + 2 * ((userSP - 5)/512)] * 512 + ((userSP - 5)%512)];
+[proTable + 9] = sysCallNum;
+returnVal = [PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512);
+resTable = [proTable +11] * 512 + RESOURCE_TABLE_OFFSET;
+//open system call
+if(sysCallNum==2) then
+	//filename from argument
+	alias fileName R7;
+	fileName = [[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+	
+	//find free entry in per process resource table
+	alias freeEntry R8;
+	freeEntry = 0;
+	while(freeEntry<16) do
+		if([resTable + freeEntry] == -1) then
+			break;
+		endif;
+		freeEntry=freeEntry+2;
+	endwhile;
+	//no free entry - return -3
+	if(freeEntry==16) then
+		[returnVal] = -3;
+		call ret;
+	endif;
+	//call open function - file manager module
+	alias freeTableEntry R9;
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+	R1 = 3;
+	R2 = fileName;
+	call MOD_3;	
+	freeTableEntry = R0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+	//failed open call
+	if(freeTableEntry < 0) then
+		[returnVal] = freeTableEntry;
+		call ret;
+	endif;
+
+	//setting per process resourse table 
+	[resTable + freeEntry] = 0;
+	[resTable + freeEntry + 1] = freeTableEntry;
+
+	//return success - 0
+	[returnVal] = 0;
+	call ret;
+
+endif;
+
+//close system call
+if(sysCallNum==3) then
+	//file descriptor from argument
+	alias fileDes R7;
+	fileDes = [[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+
+	//invalid file descriptor - return -1
+	if(fileDes<0 || fileDes>7) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+
+	//invalid per process resource table entry -return -1
+	if([resTable + 2*fileDes]!=0) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+
+	alias index R8;
+	index = [resTable + 2*fileDes + 1];
+
+	//call close function - file manager module
+	alias freeTableEntry R9;
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+	R1 = 4;
+	R2 = index;
+	call MOD_3;	
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+
+	//invalidate per process resource table
+	[resTable + 2*fileDes] = - 1;
+
+	//return success - 0
+	[returnVal] = 0;
+	call ret;
+endif;
+
+ret:
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;

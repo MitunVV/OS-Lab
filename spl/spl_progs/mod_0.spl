@@ -126,3 +126,39 @@ if(functionNum == 5) then
 		endwhile;
 	return;
 endif;
+
+//acquire buffer
+if(functionNum == 1) then
+	alias buffNum R2;
+	alias currentPID R3;
+	while ([BUFFER_TABLE+4*buffNum+2]!=-1) do
+		[PROCESS_TABLE + currentPID*16 + 4] = WAIT_BUFFER;
+		[PROCESS_TABLE + currentPID*16 + 5] = buffNum;
+		multipush(R2,R3);
+		call MOD_5;
+		multipop(R2,R3);
+	endwhile;
+	[BUFFER_TABLE+4*buffNum+2] = currentPID;
+	return;
+endif;
+
+//release buffer
+if(functionNum == 2) then
+	alias buffNum R2;
+	alias currentPID R3;
+	if(currentPID!=[BUFFER_TABLE+4*buffNum+2]) then
+		R0 = -1;
+		return;
+	endif;
+	[BUFFER_TABLE+4*buffNum+2]=-1;
+	alias iter R4;				
+	// free all processes waiting for this file
+	iter = 0;
+	while(iter < 16) do
+		if([PROCESS_TABLE + 16*iter + 4] == WAIT_BUFFER && [PROCESS_TABLE + 16*iter + 5] == buffNum) then
+			[PROCESS_TABLE + 16*iter + 4] = READY;
+		endif;
+	iter = iter + 1;
+	endwhile;
+	return;
+endif;

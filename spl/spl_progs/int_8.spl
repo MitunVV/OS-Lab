@@ -81,8 +81,12 @@ while (index < 8) do
     [resTableChild + 2 * index] = [resTableParent + 2 * index];
     [resTableChild + 2 * index + 1] = [resTableParent + 2 * index + 1];
     // Increment PROCESS COUNT in Semaphore Table
-    if ([[newProTable + 11] * 512 + RESOURCE_TABLE_OFFSET + 2 * index] == 1) then
+    if ([resTableChild + 2 * index] == 1) then
         [SEMAPHORE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] = [SEMAPHORE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] + 1;
+    endif;
+    // Increment PROCESS COUNT in File Table
+    if ([resTableChild + 2 * index] == 0) then
+        [OPEN_FILE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] = [OPEN_FILE_TABLE + 4 * [resTableChild + 2 * index + 1] + 1] + 1;
     endif;
     index = index + 1;
 endwhile;

@@ -102,6 +102,14 @@ loadi(11, 24);
 //Root File
 loadi(62, 5);
 
+//load module 3 
+loadi(46, 59);
+loadi(47, 60);
+
+// INT 5
+loadi(12, 25);
+loadi(13, 26);
+
 [DISK_STATUS_TABLE] = 0;
 
 alias counter R0;
@@ -257,6 +265,14 @@ index = 0;
 while(index < 32) do
     [SEMAPHORE_TABLE + 4 * index] = -1;
     [SEMAPHORE_TABLE + 4 * index + 1] = 0;
+    index = index + 1;
+endwhile;
+
+// Initializing Open File Table
+index = 0;
+while(index < 32) do
+    [OPEN_FILE_TABLE + 4 * index] = -1;
+    [OPEN_FILE_TABLE + 4 * index + 1] = 0;
     index = index + 1;
 endwhile;
 

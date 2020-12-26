@@ -5,6 +5,7 @@ load --int=timer $HOME/myexpos/spl/spl_progs/sample_timer.xsm
 load --int=console $HOME/myexpos/spl/spl_progs/console_int.xsm
 load --int=disk $HOME/myexpos/spl/spl_progs/disk_int.xsm
 load --int=4 $HOME/myexpos/spl/spl_progs/int_4.xsm
+load --int=5 $HOME/myexpos/spl/spl_progs/int_5.xsm
 load --int=6 $HOME/myexpos/spl/spl_progs/int_6.xsm
 load --int=7 $HOME/myexpos/spl/spl_progs/sample_int7.xsm
 load --int=8 $HOME/myexpos/spl/spl_progs/int_8.xsm
@@ -17,6 +18,7 @@ load --int=15 $HOME/myexpos/spl/spl_progs/int_15.xsm
 load --module 0 $HOME/myexpos/spl/spl_progs/mod_0.xsm
 load --module 1 $HOME/myexpos/spl/spl_progs/mod_1.xsm
 load --module 2 $HOME/myexpos/spl/spl_progs/mod_2.xsm
+load --module 3 $HOME/myexpos/spl/spl_progs/mod_3.xsm
 load --module 4 $HOME/myexpos/spl/spl_progs/mod_4.xsm
 load --module 5 $HOME/myexpos/spl/spl_progs/mod_5.xsm
 load --module 7 $HOME/myexpos/spl/spl_progs/boot_module.xsm
@@ -31,4 +33,7 @@ load --exec $HOME/myexpos/expl/expl_progs/examp.xsm
 load --init $HOME/myexpos/expl/expl_progs/shell2.xsm
 load --exec $HOME/myexpos/expl/expl_progs/create.xsm
 load --exec $HOME/myexpos/expl/expl_progs/delete.xsm
+load --exec $HOME/myexpos/expl/expl_progs/checkre.xsm
+load --data $HOME/myexpos/expl/expl_progs/sample.dat
+load --data $HOME/myexpos/expl/expl_progs/num.dat
 dump --inodeusertable
