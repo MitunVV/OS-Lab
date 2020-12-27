@@ -3,53 +3,58 @@ alias functionNum R1;
 alias currentPID R5;
 currentPID = [SYSTEM_STATUS_TABLE+1];
 
-//buffer read
-if(functionNum==2)
+//buffer write or read
+if(functionNum==1 || functionNum==2)
 then
-	breakpoint;
 	alias blockNum R2;
 	alias offset R3;
-	alias memAdd R4;
+	alias var R4;
 	alias buffNum R6;
 	buffNum = blockNum % 4;
 	//acquire buffer
-	multipush(R2,R3,R4,R5,R6);
+	multipush(R1,R2,R3,R4,R5,R6);
 	R1 = 1;
 	R2 = buffNum;
 	R3 = currentPID;
 	call MOD_0;
-	multipop(R2,R3,R4,R5,R6);
-	if([BUFFER_TABLE + 4*buffNum]!=blockNum) then 
-		if([BUFFER_TABLE + 4*buffNum + 1]==1) then 
+	multipop(R1,R2,R3,R4,R5,R6);
+	alias buffTable R7;
+	buffTable = BUFFER_TABLE + 4*buffNum;
+	if([buffTable]!=blockNum) then 
+		if([buffTable + 1]==1) then 
 			//disk store
-			multipush(R2,R3,R4,R5,R6);
-			R4 = blockNum;
+			multipush(R1,R2,R3,R4,R5,R6,R7);
+			R4 = [buffTable];
 			R1 = 1;
 			R2 = currentPID;
 			R3 = (buffNum+71);
 			call MOD_4;
-			multipop(R2,R3,R4,R5,R6);	
-			[BUFFER_TABLE + 4*buffNum + 1]=0;		
+			multipop(R1,R2,R3,R4,R5,R6,R7);	
+			[buffTable + 1]=0;		
 		endif;
 		//disk load
-		multipush(R2,R3,R4,R5,R6);
+		multipush(R1,R2,R3,R4,R5,R6,R7);
 		R4 = blockNum;
 		R1 = 2;
 		R2 = currentPID;
 		R3 = (buffNum+71);
 		call MOD_4;
-		multipop(R2,R3,R4,R5,R6);	
-		[BUFFER_TABLE + 4*buffNum]=blockNum;
+		multipop(R1,R2,R3,R4,R5,R6,R7);	
+		[buffTable]=blockNum;
 	endif;
-	[memAdd] = [(buffNum+71) * 512 + offset];
+	if(functionNum == 2) then
+		[var] = [(buffNum+71) * 512 + offset];
+	else
+		[(buffNum+71) * 512 + offset] = var;
+		[buffTable + 1] = 1;
+	endif;
 	//release buffer
-	multipush(R2,R3,R4,R5,R6);
+	multipush(R1,R2,R3,R4,R5,R6,R7);
 	R1 = 2;
 	R2 = buffNum;
 	R3 = currentPID;
 	call MOD_0;
-	multipop(R2,R3,R4,R5,R6);
-	breakpoint;
+	multipop(R1,R2,R3,R4,R5,R6,R7);
 	return;
 endif;
 

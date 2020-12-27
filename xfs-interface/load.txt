@@ -34,6 +34,10 @@ load --init $HOME/myexpos/expl/expl_progs/shell2.xsm
 load --exec $HOME/myexpos/expl/expl_progs/create.xsm
 load --exec $HOME/myexpos/expl/expl_progs/delete.xsm
 load --exec $HOME/myexpos/expl/expl_progs/checkre.xsm
+load --exec $HOME/myexpos/expl/expl_progs/seekt.xsm
+load --exec $HOME/myexpos/expl/expl_progs/seekadd.xsm
+load --exec $HOME/myexpos/expl/expl_progs/test3.xsm
+load --exec $HOME/myexpos/expl/expl_progs/test4.xsm
 load --data $HOME/myexpos/expl/expl_progs/sample.dat
 load --data $HOME/myexpos/expl/expl_progs/num.dat
 dump --inodeusertable

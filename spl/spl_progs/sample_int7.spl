@@ -1,35 +1,125 @@
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 5;
-alias userSP R0;
+alias currentPID R1;
+alias userSP R2;
+alias sysCallNum R3;
+alias proTable R4;
+alias returnVal R5;
+alias resTable R6;
+alias fileDes R7;
+alias word R8;
+currentPID = [SYSTEM_STATUS_TABLE + 1];
+proTable = PROCESS_TABLE + (currentPID * 16); 
+[proTable + 13] = SP;
 userSP = SP;
-SP = [PROCESS_TABLE + ([SYSTEM_STATUS_TABLE + 1] * 16) + 11] * 512 - 1;
-alias physicalPageNum R1;
-alias offset R2;
-alias fileDescPhysicalAddr R3;
-physicalPageNum = [PTBR + 2 * ((userSP - 4)/ 512)];
-offset = (userSP - 4) % 512;
-fileDescPhysicalAddr = (physicalPageNum * 512) + offset;
-alias fileDescriptor R4;
-fileDescriptor=[fileDescPhysicalAddr];
-if (fileDescriptor != -2)
-then
-	 alias physicalAddrRetVal R5;
-	 physicalAddrRetVal = ([PTBR + 2 * ((userSP - 1) / 512)] * 512) + ((userSP - 1) % 512);
-	 [physicalAddrRetVal] = -1;
-else
-    multipush(R0, R1, R2, R3, R4);
-	alias word R3;
-	alias cPid R2;
-	alias Fnum R1;
-	Fnum = 3;
-	cPid = [SYSTEM_STATUS_TABLE + 1];
-	word = [[PTBR + 2 * ((userSP - 3) / 512)] * 512 + ((userSP - 3) % 512)];
+SP = [proTable + 11] * 512 - 1;
+[proTable + 9] = 5;
+returnVal = [PTBR + 2*((userSP - 1)/512)] * 512 + ((userSP - 1)%512);
+resTable = [proTable +11] * 512 + RESOURCE_TABLE_OFFSET;
+fileDes = [[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+word = [[PTBR + 2 * ((userSP - 3)/512)] * 512 + ((userSP - 3)%512)];
+
+if (fileDes == -2) then
+	//call terminal write
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8);
+	R2=currentPID;
+	R1=3;
+	R3=word;
 	call MOD_4;
-	multipop(R0, R1, R2, R3, R4);
-	alias physicalAddrRetVal R6;
-	physicalAddrRetVal = ([PTBR + 2 * (userSP - 1)/ 512] * 512) + ((userSP - 1) % 512);
-	[physicalAddrRetVal] = 0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8);
+	[returnVal]=0;
+	call ret;
+else
+	//invalid file descriptor
+	if(fileDes<0||fileDes>7) then
+		[returnVal]=-1;
+		call ret;	
+	endif;
+	//invalid per process resource table entry
+	if([resTable + 2*fileDes]!=FILE) then
+		[returnVal]=-1;
+		call ret;	
+	endif;
+	alias openFileIndex R9;
+	alias inodeIndex R10;
+	alias inodeTable R11;
+	openFileIndex = [resTable + 2*fileDes + 1];
+	inodeIndex = [OPEN_FILE_TABLE + 4*openFileIndex];
+	inodeTable = INODE_TABLE + (inodeIndex * 16);
+	//permission denied
+	if(([SYSTEM_STATUS_TABLE] != ROOT) && ([inodeTable + 3] != [SYSTEM_STATUS_TABLE]) && ([inodeTable + 4] == EXCLUSIVE)) then
+		[returnVal] = -3;
+		call ret;	
+	endif;
+	//acquire inode
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+	R3=currentPID;
+	R2=inodeIndex;
+	R1=4;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+	if(R0==-1) then
+		[returnVal]=-1;
+		call ret;	
+	endif;
+	alias lSeek R12;
+	lSeek = [OPEN_FILE_TABLE + 4*openFileIndex + 2];
+	//reached maximum file size
+	if(lSeek==MAX_FILE_SIZE) then
+		//release inode
+		multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+		R3=currentPID;
+		R2=inodeIndex;
+		R1=5;
+		call MOD_0;
+		multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+		[returnVal]=-2;
+		call ret;	
+	endif;
+	alias blockNum R13;
+	if((lSeek%512==0) && (lSeek==[inodeTable + 2])) then
+		multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);
+		R1 = 3;
+		call MOD_2;
+		multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11);		
+		blockNum = R0;
+		if(R0 == -1) then
+			//release inode
+			multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);
+			R3=currentPID;
+			R2=inodeIndex;
+			R1=5;
+			call MOD_0;
+			multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);
+			[returnVal]=-2;
+			call ret;	
+		endif;			
+		[inodeTable + 8 + (lSeek / 512)] = blockNum;
+	endif;
+	blockNum = [inodeTable + 8 + (lSeek / 512)];
+	//buffer write
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);
+	R1 = 1;
+	R2 = blockNum;
+	R3 = lSeek % 512;
+	R4 = word;
+	call MOD_3;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);	
+	if(lSeek == [inodeTable + 2]) then		
+		[ROOT_FILE + (inodeIndex * 8) + 1] = [ROOT_FILE + (inodeIndex * 8) + 1] + 1;
+		[inodeTable + 2] = [inodeTable + 2] + 1;
+	endif;
+	[OPEN_FILE_TABLE + 4*openFileIndex + 2] = lSeek + 1;
+	//release inode
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);
+	R3=currentPID;
+	R2=inodeIndex;
+	R1=5;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12,R13);
+	[returnVal]=0;
+	call ret;	
 endif;
 
-SP = userSP;
-[PROCESS_TABLE + [SYSTEM_STATUS_TABLE + 1] * 16 + 9] = 0;
-ireturn;
+ret:
+	[proTable + 9] = 0;
+	SP = [proTable + 13];
+	ireturn;

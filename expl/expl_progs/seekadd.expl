@@ -1,0 +1,34 @@
+int main()
+{
+decl
+	int temp, n, file;
+	str filename;
+enddecl
+begin
+	temp = exposcall("Write", -2, "Filename >");
+	temp = exposcall("Read", -1, filename);
+	file = exposcall("Open", filename);
+	
+	temp = exposcall("Seek", file, 1100);
+	
+	n = 2000;
+	while(n <= 2513) do
+		temp = exposcall("Write", file, n);
+		n = n + 1;
+	endwhile;
+	
+	temp = exposcall("Write", -2, "File saved.");
+	
+	temp = exposcall("Seek", file, -1);
+	
+	while(n > 0) do
+		temp = exposcall("Read", file, n);
+		temp = exposcall("Write", -2, n);
+		temp = exposcall("Seek", file, -2);
+		if(temp < 0) then
+			break;
+		endif;
+	endwhile;
+	return 0;
+end
+}

@@ -123,3 +123,44 @@ if(funcNum==1) then
 	R0 = indexCounter;
 	return;
 endif;
+
+//Kill All Function
+if(funcNum == 5) then
+	alias iter R4;
+	iter = 0;
+	while(iter < MAX_FILE_NUM) do
+		if([INODE_TABLE + (16*iter) + 1] != -1) then
+			multipush(R1,R2,R4);
+			R3 = currPID;
+			R1 = 4;
+			R2 = iter;
+			call MOD_0;
+			multipop(R1,R2,R4);
+		endif;
+		iter = iter + 1;
+	endwhile;
+	iter = 2;
+	while(iter < MAX_PROC_NUM) do
+		if((iter != currPID) && ([PROCESS_TABLE + (iter*16) + 4]) != TERMINATED) then
+			multipush(R1,R2,R4);
+			R1 = 3;
+			R2 = currPID;
+			call MOD_1;
+			multipop(R1,R2,R4);
+		endif;
+		iter = iter + 1;
+	endwhile;	
+	iter = 0;
+	while(iter < MAX_FILE_NUM) do
+		if([INODE_TABLE + (16*iter) + 1] != -1) then
+			multipush(R1,R2,R4);
+			R3 = currPID;
+			R1 = 5;
+			R2 = iter;
+			call MOD_0;
+			multipop(R1,R2,R4);
+		endif;
+		iter = iter + 1;
+	endwhile;
+	return;
+endif;

@@ -52,7 +52,7 @@ if(sysCallNum==2) then
 	[resTable + freeEntry + 1] = freeTableEntry;
 
 	//return success - 0
-	[returnVal] = 0;
+	[returnVal] = freeEntry/2;
 	call ret;
 
 endif;
@@ -89,6 +89,80 @@ if(sysCallNum==3) then
 	//invalidate per process resource table
 	[resTable + 2*fileDes] = - 1;
 
+	//return success - 0
+	[returnVal] = 0;
+	call ret;
+endif;
+
+//Seek System call
+if(sysCallNum==6) then
+	//file descriptor and offset from argument
+	alias fileDes R7;
+	alias offset R8;
+	fileDes = [[PTBR + 2 * ((userSP - 4)/512)] * 512 + ((userSP - 4)%512)];
+	offset = [[PTBR + 2 * ((userSP - 3)/512)] * 512 + ((userSP - 3)%512)];
+
+	//invalid file descriptor - return -1
+	if(fileDes<0 || fileDes>7) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+
+	//invalid per process resource table entry -return -1
+	if([resTable + 2*fileDes]!=0) then
+		[returnVal] = -1;
+		call ret;
+	endif;
+	alias openFileIndex R9;
+	alias inodeIndex R10;
+	openFileIndex = [resTable + 2*fileDes + 1];
+	inodeIndex = [OPEN_FILE_TABLE + 4*openFileIndex];
+	//acquire inode
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10);
+	R3=currentPID;
+	R2=inodeIndex;
+	R1=4;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10);
+	if(R0==-1) then
+		[returnVal]=-1;
+		call ret;	
+	endif;
+	alias fileSize R11;
+	if(inodeIndex == INODE_ROOT) then
+		fileSize = 480;
+	else
+		fileSize = [INODE_TABLE + 16*inodeIndex + 2];
+	endif;
+	alias lSeek R12;
+	lSeek = OPEN_FILE_TABLE + 4*openFileIndex + 2;
+	if([lSeek] + offset < 0) then
+		//release inode
+		multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+		R3=currentPID;
+		R2=inodeIndex;
+		R1=5;
+		call MOD_0;
+		multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+		[returnVal]=-2;
+		call ret;	
+	endif;
+	if(offset == 0) then
+		[lSeek] = 0;
+	else 
+		if([lSeek] + offset > fileSize) then
+			[lSeek] = fileSize;
+		else 
+			[lSeek] = [lSeek] + offset;
+		endif;
+	endif;
+	//release inode
+	multipush(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
+	R3=currentPID;
+	R2=inodeIndex;
+	R1=5;
+	call MOD_0;
+	multipop(R1,R2,R3,R4,R5,R6,R7,R8,R9,R10,R11,R12);
 	//return success - 0
 	[returnVal] = 0;
 	call ret;
